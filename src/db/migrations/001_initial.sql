@@ -1,16 +1,9 @@
 -- Migration 001: Initial schema
 -- Creates core tables for Mnemos memory service.
+-- Schema bookkeeping (_migrations) is owned by src/db/migrate.ts.
 
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
-
--- Migration tracking table
-CREATE TABLE IF NOT EXISTS _migrations (
-  version   INTEGER     NOT NULL PRIMARY KEY,
-  name      TEXT        NOT NULL,
-  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  checksum  TEXT        NOT NULL
-);
 
 -- Projects
 CREATE TABLE IF NOT EXISTS projects (
@@ -166,8 +159,3 @@ CREATE INDEX idx_sources_agent ON sources(agent_id);
 ALTER TABLE memories ADD COLUMN IF NOT EXISTS search_vector tsvector
   GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
 CREATE INDEX IF NOT EXISTS idx_memories_search ON memories USING GIN(search_vector);
-
--- Record this migration
-INSERT INTO _migrations (version, name, checksum)
-VALUES (1, 'initial_schema', 'initial')
-ON CONFLICT (version) DO NOTHING;

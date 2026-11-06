@@ -4,7 +4,7 @@ import type { AppConfig } from "../types/index.js";
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-  DATABASE_URL: z.string().url().default("postgres://mnemos:mnemos@localhost:5432/mnemos"),
+  DATABASE_URL: z.url().default("postgres://mnemos:mnemos@localhost:5432/mnemos"),
   MNEMOS_TRANSPORT: z.enum(["stdio", "http", "both"]).default("stdio"),
   HTTP_HOST: z.string().default("0.0.0.0"),
   HTTP_PORT: z.coerce.number().int().positive().default(3100),

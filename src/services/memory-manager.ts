@@ -12,6 +12,7 @@ import {
 } from "../db/repositories/index.js";
 import {
   NotFoundError,
+  PermissionError,
   ValidationError,
   createMemorySchema,
   listMemoriesSchema,
@@ -24,7 +25,6 @@ import {
   type ListMemoriesFilter,
   type Memory,
   type MemoryListResult,
-  type MemoryStatus,
   type MemoryVersion,
   type UpdateMemoryInput,
 } from "../core/index.js";
@@ -148,48 +148,16 @@ export class MemoryManager {
     const filter = parseOrThrow(listMemoriesSchema, rawFilter);
     return this.tx(async (db) => {
       const ctx = await this.getAccessContext(db, actor);
-      if (!ctx.actorActive) throw new NotFoundError("Memory not found");
-
-      const statuses: MemoryStatus[] = filter.statuses ?? ["active"];
-      const params: unknown[] = [actor.agentId];
-      const where: string[] = [];
-      let idx = 2;
-
-      where.push(`m.status = ANY($${idx++}::text[])`);
-      params.push(statuses);
-
-      where.push(`(
-        (m.scope = 'global')
-        OR (m.scope = 'private' AND m.created_by_agent = $1)
-        OR (m.scope = 'project' AND m.project_id IN (
-          SELECT project_id FROM agent_project_access WHERE agent_id = $1
-        ))
-      )`);
-
-      if (filter.projectId) {
-        where.push(`m.project_id = $${idx++}`);
-        params.push(filter.projectId);
-      }
-      if (filter.scope) {
-        where.push(`m.scope = $${idx++}`);
-        params.push(filter.scope);
-      }
-      if (filter.types?.length) {
-        where.push(`m.type = ANY($${idx++}::text[])`);
-        params.push(filter.types);
-      }
-      if (filter.tags?.length) {
-        where.push(`EXISTS (
-          SELECT 1 FROM memory_tags mt
-          JOIN tags t ON t.id = mt.tag_id
-          WHERE mt.memory_id = m.id AND t.name = ANY($${idx++}::text[])
-        )`);
-        params.push(normalizeTags(filter.tags));
-      }
+      if (!ctx.actorActive) throw new PermissionError("Access denied");
 
       const { rows, total } = await this.memories.list(db, {
-        whereSql: `WHERE ${where.join(" AND ")}`,
-        params,
+        actorAgentId: actor.agentId,
+        accessibleProjectIds: Array.from(ctx.accessibleProjectIds),
+        statuses: filter.statuses ?? ["active"],
+        scope: filter.scope,
+        projectId: filter.projectId,
+        types: filter.types,
+        tagNames: filter.tags ? normalizeTags(filter.tags) : undefined,
         limit: filter.limit,
         offset: filter.offset,
       });

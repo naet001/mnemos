@@ -37,7 +37,7 @@ export class AccessManager {
   }
 
   assertCanWrite(ctx: AccessContext, memory: Pick<Memory, "scope" | "projectId" | "createdByAgent" | "status">): void {
-    if (!this.canRead(ctx, memory)) {
+    if (!this.canWrite(ctx, memory)) {
       throw new NotFoundError("Memory not found");
     }
   }
@@ -47,9 +47,6 @@ export class AccessManager {
       throw new PermissionError("Access denied");
     }
     if (!this.canCreate(ctx, scope, projectId)) {
-      if (scope === "project") {
-        throw new PermissionError("Access denied");
-      }
       throw new PermissionError("Access denied");
     }
   }

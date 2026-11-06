@@ -108,9 +108,14 @@ export interface MemoryMutationInput {
   archivedAt: Date | null;
 }
 
-export interface ListQuery {
-  whereSql: string;
-  params: unknown[];
+export interface MemoryListFilter {
+  actorAgentId: string;
+  accessibleProjectIds: string[];
+  statuses: MemoryStatus[];
+  scope?: Scope;
+  projectId?: string;
+  types?: MemoryType[];
+  tagNames?: string[];
   limit: number;
   offset: number;
 }
@@ -178,19 +183,57 @@ export class MemoryRepository {
     return mapMemory(row, tags.get(id) ?? []);
   }
 
-  async list(db: DbExecutor, query: ListQuery): Promise<{ rows: Memory[]; total: number }> {
+  async list(
+    db: DbExecutor,
+    filter: MemoryListFilter,
+  ): Promise<{ rows: Memory[]; total: number }> {
+    const params: unknown[] = [filter.actorAgentId, filter.accessibleProjectIds];
+    const where: string[] = [
+      // Soft-deleted rows are never listable, regardless of status filter.
+      "m.status <> 'deleted'",
+      "m.status = ANY($3::text[])",
+      `(
+        m.scope = 'global'
+        OR (m.scope = 'private' AND m.created_by_agent = $1)
+        OR (m.scope = 'project' AND m.project_id = ANY($2::uuid[]))
+      )`,
+    ];
+    params.push(filter.statuses);
+
+    let idx = 4;
+    if (filter.projectId) {
+      where.push(`m.project_id = $${idx++}`);
+      params.push(filter.projectId);
+    }
+    if (filter.scope) {
+      where.push(`m.scope = $${idx++}`);
+      params.push(filter.scope);
+    }
+    if (filter.types?.length) {
+      where.push(`m.type = ANY($${idx++}::text[])`);
+      params.push(filter.types);
+    }
+    if (filter.tagNames?.length) {
+      // tags.name keeps display casing; matching is case-insensitive.
+      where.push(`EXISTS (
+        SELECT 1 FROM memory_tags mt
+        JOIN tags t ON t.id = mt.tag_id
+        WHERE mt.memory_id = m.id AND LOWER(t.name) = ANY($${idx++}::text[])
+      )`);
+      params.push(filter.tagNames.map((t) => t.toLowerCase()));
+    }
+
+    const whereSql = `WHERE ${where.join(" AND ")}`;
     const countResult = await db.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM memories m ${query.whereSql}`,
-      query.params,
+      `SELECT COUNT(*)::text AS count FROM memories m ${whereSql}`,
+      params,
     );
     const total = Number(countResult.rows[0]?.count ?? "0");
-    const limitIdx = query.params.length + 1;
-    const offsetIdx = query.params.length + 2;
     const result = await db.query<MemoryRow>(
-      `SELECT m.* FROM memories m ${query.whereSql}
+      `SELECT m.* FROM memories m ${whereSql}
        ORDER BY m.updated_at DESC, m.id DESC
-       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-      [...query.params, query.limit, query.offset],
+       LIMIT $${idx} OFFSET $${idx + 1}`,
+      [...params, filter.limit, filter.offset],
     );
     const ids = result.rows.map((r) => r.id);
     const tags = await this.tagsRepo.getTagsForMemories(db, ids);

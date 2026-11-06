@@ -2,7 +2,12 @@
 
 A shared, persistent memory service for multiple independent AI agents and LLM platforms. Mnemos is an MCP server that gives connected agents access to one canonical memory store — submit information, retrieve relevant memories, and share project context.
 
-> **Status:** Early development (M1 foundation complete)
+> **Status:** Early development (M1 complete, M2 memory core in verification)
+
+> **Note:** `pnpm migrate` is the only schema path and requires the PostgreSQL
+> container from `docker compose up -d` (the pgvector image — `CREATE EXTENSION
+> vector` fails on stock PostgreSQL). Configuration is read from environment
+> variables; copy `.env.example` to `.env` and the scripts load it automatically.
 
 ## Features
 
@@ -52,10 +57,12 @@ pnpm dev
 
 ```
 src/
-├── config/     # Configuration loader
-├── db/         # Database connection, migrations, queries
-├── logger/     # Structured logging
-└── types/      # Shared type definitions
+├── config/         # Configuration loader
+├── core/           # Domain types, validation, typed errors
+├── db/             # Connection, migrations, repositories
+├── logger/         # Structured logging
+├── services/       # Memory manager, access manager
+└── types/          # Shared type definitions
 ```
 
 ## License

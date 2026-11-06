@@ -49,7 +49,7 @@ export class ConflictError extends AppError {
 }
 
 export class PersistenceError extends AppError {
-  constructor(message = "A persistence error occurred") {
-    super("PERSISTENCE_ERROR", message, 500);
+  constructor(message = "A persistence error occurred", details?: Record<string, unknown>) {
+    super("PERSISTENCE_ERROR", message, 500, details);
   }
 }

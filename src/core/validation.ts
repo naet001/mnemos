@@ -2,29 +2,9 @@ import { z } from "zod";
 import { MEMORY_STATUSES, MEMORY_TYPES, SCOPES, SOURCE_KINDS } from "./types.js";
 import { ValidationError } from "./errors.js";
 
-const uuid = z.string().uuid();
+const uuid = z.uuid();
 const nonEmptyText = z.string().trim().min(1);
 const tagName = z.string().trim().min(1).max(100);
-
-const scopeProjectRefinement = (
-  value: { scope: string; projectId?: string | null },
-  ctx: z.RefinementCtx,
-) => {
-  if (value.scope === "project" && !value.projectId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["projectId"],
-      message: "projectId is required when scope is project",
-    });
-  }
-  if (value.scope === "global" && value.projectId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["projectId"],
-      message: "projectId must not be set when scope is global",
-    });
-  }
-};
 
 export const createMemorySchema = z
   .object({
@@ -38,7 +18,22 @@ export const createMemorySchema = z
     sourceKind: z.enum(SOURCE_KINDS).default("agent_submission"),
     externalRef: z.string().trim().min(1).max(500).nullish(),
   })
-  .superRefine(scopeProjectRefinement);
+  .superRefine((value, ctx) => {
+    if (value.scope === "project" && !value.projectId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["projectId"],
+        message: "projectId is required when scope is project",
+      });
+    }
+    if (value.scope === "global" && value.projectId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["projectId"],
+        message: "projectId must not be set when scope is global",
+      });
+    }
+  });
 
 export const updateMemorySchema = z
   .object({
