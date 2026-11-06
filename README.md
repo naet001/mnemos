@@ -2,7 +2,7 @@
 
 A shared, persistent memory service for multiple independent AI agents and LLM platforms. Mnemos is an MCP server that gives connected agents access to one canonical memory store — submit information, retrieve relevant memories, and share project context.
 
-> **Status:** Early development (M1–M2 complete, M3 hybrid retrieval in verification)
+> **Status:** Early development (M1–M3 complete, M4 assisted memory in verification)
 
 > **Note:** `pnpm migrate` is the only schema path and requires the PostgreSQL
 > container from `docker compose up -d` (the pgvector image — `CREATE EXTENSION
@@ -10,13 +10,15 @@ A shared, persistent memory service for multiple independent AI agents and LLM p
 > variables; copy `.env.example` to `.env` and the scripts load it automatically.
 > Retrieval combines pgvector similarity with PostgreSQL full-text search;
 > with `EMBEDDING_PROVIDER=none` search degrades to keyword-only. The `fake`
-> provider is a deterministic lexical-similarity stand-in, not a semantic model.
+> providers are deterministic stand-ins (lexical similarity; sentence-split
+> extraction), not semantic models. With `EXTRACTION_PROVIDER=none` a raw
+> submission becomes a single create proposal awaiting review.
 
 ## Features
 
 - **Shared memory** — one store, many agents, permission-controlled access
 - **Hybrid retrieval** — vector similarity + full-text search fused with RRF, filtered by metadata and access scope
-- **Structured proposals** — assisted memory creation with an extraction LLM
+- **Structured proposals** — assisted memory creation: raw submissions become pending proposals (optionally extracted by a replaceable provider) that an authorized reviewer approves or rejects
 - **MCP transport** — supports both STDIO and Streamable HTTP
 - **PostgreSQL + pgvector** — durable storage with vector similarity search
 - **Modular monolith** — clean internal modules, single deployable service
@@ -64,8 +66,8 @@ src/
 ├── core/           # Domain types, validation, typed errors
 ├── db/             # Connection, migrations, repositories
 ├── logger/         # Structured logging
-├── providers/      # Embedding provider interface + adapters
-├── services/       # Memory manager, access manager, retrieval engine
+├── providers/      # Embedding + extraction provider interfaces and adapters
+├── services/       # Memory, access, retrieval, assistant, and proposal managers
 └── types/          # Shared type definitions
 ```
 

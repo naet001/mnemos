@@ -1,10 +1,18 @@
 import { ProviderError } from "../core/errors.js";
 import type { EmbeddingProvider } from "./embedding-provider.js";
 import { FakeEmbeddingProvider } from "./fake-embedding-provider.js";
+import type { ExtractionProvider } from "./extraction-provider.js";
+import { FakeExtractionProvider } from "./fake-extraction-provider.js";
 
 export type { EmbeddingProvider } from "./embedding-provider.js";
 export { isZeroVector } from "./embedding-provider.js";
 export { FakeEmbeddingProvider } from "./fake-embedding-provider.js";
+export type {
+  ExtractionProvider,
+  ExtractionInput,
+  ExtractionHints,
+} from "./extraction-provider.js";
+export { FakeExtractionProvider } from "./fake-extraction-provider.js";
 
 // The initial schema hard-types memory_embeddings.embedding as vector(384);
 // changing that requires a documented re-embedding migration (SPEC §10.3).
@@ -42,4 +50,21 @@ export function createEmbeddingProvider(config: {
     );
   }
   return provider;
+}
+
+export function createExtractionProvider(config: {
+  provider: string;
+  model: string;
+}): ExtractionProvider | null {
+  const name = config.provider.trim().toLowerCase();
+  if (name === "" || name === "none") return null;
+
+  switch (name) {
+    case "fake":
+      return new FakeExtractionProvider();
+    default:
+      throw new ProviderError(`Unknown extraction provider "${config.provider}"`, {
+        provider: config.provider,
+      });
+  }
 }

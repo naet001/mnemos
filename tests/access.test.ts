@@ -82,3 +82,72 @@ describe("AccessManager (A: private=creator)", () => {
     ).toThrowError(/not found/i);
   });
 });
+
+describe("AccessManager review policy (M4)", () => {
+  const access = new AccessManager();
+
+  it("denies self-approval of global and project proposals", () => {
+    expect(
+      access.canReview(ctx(actorA.agentId), {
+        submittedByAgent: actorA.agentId,
+        proposedScope: "global",
+        proposedProjectId: null,
+      }),
+    ).toBe(false);
+    expect(
+      access.canReview(ctx(actorA.agentId, [projectId]), {
+        submittedByAgent: actorA.agentId,
+        proposedScope: "project",
+        proposedProjectId: projectId,
+      }),
+    ).toBe(false);
+  });
+
+  it("allows self-approval only for private (the §13.7 policy exception)", () => {
+    expect(
+      access.canReview(ctx(actorA.agentId), {
+        submittedByAgent: actorA.agentId,
+        proposedScope: "private",
+        proposedProjectId: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("requires write access for a foreign project proposal review", () => {
+    const proposal = {
+      submittedByAgent: actorA.agentId,
+      proposedScope: "project" as const,
+      proposedProjectId: projectId,
+    };
+    expect(access.canReview(ctx(actorB.agentId, []), proposal)).toBe(false);
+    expect(access.canReview(ctx(actorB.agentId, [projectId]), proposal)).toBe(true);
+  });
+
+  it("any active agent may review global proposals; inactive may not", () => {
+    const proposal = {
+      submittedByAgent: actorA.agentId,
+      proposedScope: "global" as const,
+      proposedProjectId: null,
+    };
+    expect(access.canReview(ctx(actorB.agentId), proposal)).toBe(true);
+    expect(access.canReview(ctx(actorB.agentId, [], false), proposal)).toBe(false);
+  });
+
+  it("see-proposal: own submissions always visible, foreign private hidden", () => {
+    const privateMine = {
+      submittedByAgent: actorA.agentId,
+      proposedScope: "private" as const,
+      proposedProjectId: null,
+    };
+    const privateTheirs = {
+      submittedByAgent: actorB.agentId,
+      proposedScope: "private" as const,
+      proposedProjectId: null,
+    };
+    expect(access.canSeeProposal(ctx(actorA.agentId), privateMine)).toBe(true);
+    expect(access.canSeeProposal(ctx(actorA.agentId), privateTheirs)).toBe(false);
+    expect(() =>
+      access.assertCanSeeProposal(ctx(actorA.agentId), privateTheirs),
+    ).toThrowError(/not found/i);
+  });
+});

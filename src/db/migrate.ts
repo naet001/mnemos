@@ -18,6 +18,7 @@ interface Migration {
 const MIGRATIONS: Migration[] = [
   { version: 1, name: "initial_schema", filename: "001_initial.sql" },
   { version: 2, name: "embedding_unique", filename: "002_embedding_unique.sql" },
+  { version: 3, name: "proposal_provenance", filename: "003_proposal_provenance.sql" },
 ];
 
 async function getAppliedChecksums(pool: pg.Pool): Promise<Map<number, string>> {

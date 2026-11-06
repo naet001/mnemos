@@ -1,4 +1,11 @@
 export { MemoryManager } from "./memory-manager.js";
 export { AccessManager } from "./access-manager.js";
+export { RetrievalEngine } from "./retrieval-engine.js";
+export { MemoryAssistant } from "./memory-assistant.js";
+export { ProposalManager } from "./proposal-manager.js";
+export { decideConflict, looksLikeSecret, tokenContainment, tokenize, CONFLICT_POOL_LIMIT } from "./conflict-detection.js";
+export { embedQuietly } from "./embed-write.js";
 export type { AccessContext } from "./access-manager.js";
 export type { MemoryManagerDeps } from "./memory-manager.js";
+export type { MemoryAssistantDeps } from "./memory-assistant.js";
+export type { ProposalManagerDeps } from "./proposal-manager.js";

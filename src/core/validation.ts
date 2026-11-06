@@ -1,10 +1,33 @@
 import { z } from "zod";
-import { MEMORY_STATUSES, MEMORY_TYPES, SCOPES, SOURCE_KINDS } from "./types.js";
+import { MEMORY_STATUSES, MEMORY_TYPES, PROPOSAL_ACTIONS, PROPOSAL_STATUSES, SCOPES, SOURCE_KINDS } from "./types.js";
+import type { Scope } from "./types.js";
 import { ValidationError } from "./errors.js";
 
 const uuid = z.uuid();
 const nonEmptyText = z.string().trim().min(1);
 const tagName = z.string().trim().min(1).max(100);
+
+interface ScopeProjectShape {
+  scope: Scope;
+  projectId?: string | null;
+}
+
+function applyScopeProjectRules(value: ScopeProjectShape, ctx: z.RefinementCtx): void {
+  if (value.scope === "project" && !value.projectId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["projectId"],
+      message: "projectId is required when scope is project",
+    });
+  }
+  if (value.scope === "global" && value.projectId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["projectId"],
+      message: "projectId must not be set when scope is global",
+    });
+  }
+}
 
 export const createMemorySchema = z
   .object({
@@ -18,22 +41,7 @@ export const createMemorySchema = z
     sourceKind: z.enum(SOURCE_KINDS).default("agent_submission"),
     externalRef: z.string().trim().min(1).max(500).nullish(),
   })
-  .superRefine((value, ctx) => {
-    if (value.scope === "project" && !value.projectId) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["projectId"],
-        message: "projectId is required when scope is project",
-      });
-    }
-    if (value.scope === "global" && value.projectId) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["projectId"],
-        message: "projectId must not be set when scope is global",
-      });
-    }
-  });
+  .superRefine(applyScopeProjectRules);
 
 export const updateMemorySchema = z
   .object({
@@ -70,6 +78,40 @@ export const searchMemorySchema = z.object({
   tags: z.array(tagName).optional(),
   statuses: z.array(z.enum(MEMORY_STATUSES)).optional(),
   limit: z.number().int().min(1).max(100).default(20),
+});
+
+// Extraction output is untrusted (SPEC §13.10): caps here are the defense,
+// Zod's default stripping of unknown keys drops any injected extra fields.
+export const memoryCandidateSchema = z
+  .object({
+    content: nonEmptyText.max(4000),
+    type: z.enum(MEMORY_TYPES),
+    scope: z.enum(SCOPES),
+    projectId: uuid.nullish(),
+    importance: z.number().int().min(1).max(10).optional(),
+    confidence: z.number().min(0).max(1).optional(),
+    rationale: z.string().trim().max(1000).nullish(),
+  })
+  .superRefine(applyScopeProjectRules);
+
+export const candidateBatchSchema = z.array(memoryCandidateSchema).min(1).max(10);
+
+export const rememberSchema = z.object({
+  content: nonEmptyText.max(8000),
+  scope: z.enum(SCOPES).optional(),
+  projectId: uuid.nullish(),
+  type: z.enum(MEMORY_TYPES).optional(),
+  externalRef: z.string().trim().min(1).max(500).nullish(),
+});
+
+export const proposalIdSchema = uuid;
+
+export const listProposalsSchema = z.object({
+  actions: z.array(z.enum(PROPOSAL_ACTIONS)).optional(),
+  statuses: z.array(z.enum(PROPOSAL_STATUSES)).default(["pending"]),
+  projectId: uuid.optional(),
+  limit: z.number().int().min(1).max(100).default(20),
+  offset: z.number().int().min(0).default(0),
 });
 
 export function parseOrThrow<T>(schema: z.ZodType<T>, value: unknown): T {

@@ -26,6 +26,12 @@ export type SourceKind = (typeof SOURCE_KINDS)[number];
 export const AGENT_STATUSES = ["active", "disabled", "revoked"] as const;
 export type AgentStatus = (typeof AGENT_STATUSES)[number];
 
+export const PROPOSAL_ACTIONS = ["create", "update", "archive", "supersede"] as const;
+export type ProposalAction = (typeof PROPOSAL_ACTIONS)[number];
+
+export const PROPOSAL_STATUSES = ["pending", "approved", "rejected", "expired"] as const;
+export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
+
 export interface Actor {
   agentId: string;
 }
@@ -149,4 +155,76 @@ export interface SearchResult {
   // confirming the keyword-only degrade when no provider is configured.
   legs: { semantic: number; keyword: number };
   fused: number;
+}
+
+export interface Proposal {
+  id: string;
+  action: ProposalAction;
+  proposedContent: string;
+  proposedType: MemoryType;
+  proposedScope: Scope;
+  proposedProjectId: string | null;
+  targetMemoryId: string | null;
+  targetVersion: number | null;
+  rationale: string | null;
+  proposedImportance: number | null;
+  proposedConfidence: number | null;
+  status: ProposalStatus;
+  sourceId: string;
+  submittedByAgent: string;
+  reviewedByAgent: string | null;
+  resultingMemoryId: string | null;
+  createdAt: Date;
+  reviewedAt: Date | null;
+}
+
+// Untrusted provider output (SPEC §6.3/§13.10): validated by
+// memoryCandidateSchema before anything is stored.
+export interface MemoryCandidate {
+  content: string;
+  type: MemoryType;
+  scope: Scope;
+  projectId: string | null;
+  importance?: number;
+  confidence?: number;
+  rationale?: string | null;
+}
+
+export interface RememberInput {
+  content: string;
+  scope?: Scope;
+  projectId?: string | null;
+  type?: MemoryType;
+  externalRef?: string | null;
+}
+
+export interface RememberResult {
+  sourceId: string;
+  proposals: Proposal[];
+  extraction: {
+    provider: string | null;
+    degraded: boolean;
+    candidates: number;
+  };
+  skippedDuplicates: number;
+}
+
+export interface ProposalListFilterInput {
+  actions?: ProposalAction[];
+  statuses?: ProposalStatus[];
+  projectId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ProposalListResult {
+  items: Proposal[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ApprovalResult {
+  proposal: Proposal;
+  memory: Memory | null;
 }

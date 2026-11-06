@@ -8,6 +8,7 @@ import type {
 } from "../../core/index.js";
 import { ConflictError } from "../../core/index.js";
 import { TagRepository } from "./tag-repository.js";
+import { scopeVisibilitySql } from "./visibility-sql.js";
 
 export interface MemoryRow {
   id: string;
@@ -192,11 +193,7 @@ export class MemoryRepository {
       // Soft-deleted rows are never listable, regardless of status filter.
       "m.status <> 'deleted'",
       "m.status = ANY($3::text[])",
-      `(
-        m.scope = 'global'
-        OR (m.scope = 'private' AND m.created_by_agent = $1)
-        OR (m.scope = 'project' AND m.project_id = ANY($2::uuid[]))
-      )`,
+      scopeVisibilitySql("m.scope", "m.project_id", "m.created_by_agent", "$1", "$2"),
     ];
     params.push(filter.statuses);
 

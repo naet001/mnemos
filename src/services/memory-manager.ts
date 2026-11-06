@@ -11,8 +11,7 @@ import {
   TagRepository,
   type DbExecutor,
 } from "../db/repositories/index.js";
-import { isZeroVector, type EmbeddingProvider } from "../providers/embedding-provider.js";
-import { logger } from "../logger/index.js";
+import type { EmbeddingProvider } from "../providers/embedding-provider.js";
 import {
   NotFoundError,
   PermissionError,
@@ -32,6 +31,7 @@ import {
   type UpdateMemoryInput,
 } from "../core/index.js";
 import { AccessManager, type AccessContext } from "./access-manager.js";
+import { embedQuietly } from "./embed-write.js";
 
 export interface MemoryManagerDeps {
   pool?: pg.Pool;
@@ -77,37 +77,6 @@ export class MemoryManager {
 
   private async tx<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
     return withTransaction(fn, this.db());
-  }
-
-  // Embed within the caller's transaction, right after the version row exists
-  // (composite FK requirement). A provider failure only loses the vector,
-  // never the memory: absence of a row means "pending" and keyword search
-  // still finds it (SPEC §8/§15). A future networked provider should move
-  // this to a post-commit outbox so no network call happens inside a tx.
-  private async tryEmbed(
-    db: DbExecutor,
-    memoryId: string,
-    version: number,
-    content: string,
-  ): Promise<void> {
-    if (!this.embeddingProvider) return;
-    try {
-      const vector = await this.embeddingProvider.embed(content);
-      if (isZeroVector(vector)) return;
-      await this.embeddingRepo.upsert(db, {
-        memoryId,
-        memoryVersion: version,
-        embedding: vector,
-        model: this.embeddingProvider.model,
-        dimensions: this.embeddingProvider.dimensions,
-      });
-    } catch (err) {
-      logger.warn("Embedding generation failed; memory stays keyword-searchable", {
-        memoryId,
-        version,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
   }
 
   private async getAccessContext(db: DbExecutor, actor: Actor): Promise<AccessContext> {
@@ -167,7 +136,10 @@ export class MemoryManager {
       });
 
       await this.tags.replaceMemoryTags(db, memory.id, tags);
-      await this.tryEmbed(db, memory.id, 1, memory.content);
+      await embedQuietly(
+        { embeddingRepo: this.embeddingRepo, embeddingProvider: this.embeddingProvider },
+        db, memory.id, 1, memory.content,
+      );
       const created = await this.memories.getById(db, memory.id);
       if (!created) throw new NotFoundError("Memory not found");
       return created;
@@ -262,7 +234,10 @@ export class MemoryManager {
       if (tags !== undefined) {
         await this.tags.replaceMemoryTags(db, memoryId, tags);
       }
-      await this.tryEmbed(db, memoryId, newVersion, mutation.content);
+      await embedQuietly(
+        { embeddingRepo: this.embeddingRepo, embeddingProvider: this.embeddingProvider },
+        db, memoryId, newVersion, mutation.content,
+      );
       const updated = await this.memories.getById(db, memoryId);
       if (!updated) throw new NotFoundError("Memory not found");
       return updated;

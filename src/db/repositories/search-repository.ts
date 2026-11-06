@@ -3,6 +3,7 @@ import type { Memory, MemoryStatus, MemoryType } from "../../core/index.js";
 import { TagRepository } from "./tag-repository.js";
 import { mapMemory, type MemoryRow } from "./memory-repository.js";
 import { toPgVector } from "./embedding-repository.js";
+import { scopeVisibilitySql } from "./visibility-sql.js";
 
 export interface SearchFilter {
   actorAgentId: string;
@@ -37,11 +38,7 @@ function buildFilterSql(filter: SearchFilter, params: unknown[]): string[] {
   const clauses: string[] = [
     "m.status <> 'deleted'",
     `m.status = ANY(${statusesP}::text[])`,
-    `(
-      m.scope = 'global'
-      OR (m.scope = 'private' AND m.created_by_agent = ${actorP})
-      OR (m.scope = 'project' AND m.project_id = ANY(${projectsP}::uuid[]))
-    )`,
+    scopeVisibilitySql("m.scope", "m.project_id", "m.created_by_agent", actorP, projectsP),
   ];
 
   if (filter.projectIds?.length) {
