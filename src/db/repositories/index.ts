@@ -4,4 +4,8 @@ export { AgentProjectAccessRepository } from "./agent-project-access-repository.
 export { SourceRepository } from "./source-repository.js";
 export { TagRepository } from "./tag-repository.js";
 export { MemoryRepository } from "./memory-repository.js";
+export { EmbeddingRepository, toPgVector, parsePgVector } from "./embedding-repository.js";
+export { SearchRepository } from "./search-repository.js";
+export type { EmbeddingRecord, UpsertEmbeddingInput } from "./embedding-repository.js";
+export type { SearchFilter, SearchHit } from "./search-repository.js";
 export type { DbExecutor } from "../tx.js";

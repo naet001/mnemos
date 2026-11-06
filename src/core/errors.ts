@@ -3,7 +3,8 @@ export type AppErrorCode =
   | "NOT_FOUND"
   | "PERMISSION_DENIED"
   | "CONFLICT"
-  | "PERSISTENCE_ERROR";
+  | "PERSISTENCE_ERROR"
+  | "PROVIDER_ERROR";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;
@@ -51,5 +52,11 @@ export class ConflictError extends AppError {
 export class PersistenceError extends AppError {
   constructor(message = "A persistence error occurred", details?: Record<string, unknown>) {
     super("PERSISTENCE_ERROR", message, 500, details);
+  }
+}
+
+export class ProviderError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super("PROVIDER_ERROR", message, 500, details);
   }
 }

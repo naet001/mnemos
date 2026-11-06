@@ -1,6 +1,7 @@
 import { loadConfig } from "./config/index.js";
 import { logger, setLogLevel } from "./logger/index.js";
 import { connect, disconnect, checkHealth } from "./db/index.js";
+import { createEmbeddingProvider } from "./providers/index.js";
 
 async function main(): Promise<void> {
   // Load configuration
@@ -37,10 +38,16 @@ async function main(): Promise<void> {
   }
 
   // Log startup summary
+  // Provider is validated eagerly so a bad embedding configuration fails at
+  // startup; services are constructed when the MCP interface registers them
+  // (M5).
+  const embeddingProvider = createEmbeddingProvider(config.embedding);
+
   logger.info("Mnemos started successfully", {
     transport: config.transport,
     pgvector: health.pgvectorAvailable,
     schema: health.schemaVersion,
+    embeddingProvider: embeddingProvider?.model ?? "none (keyword-only retrieval)",
   });
 
   // Handle graceful shutdown

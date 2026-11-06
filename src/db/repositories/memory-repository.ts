@@ -9,7 +9,7 @@ import type {
 import { ConflictError } from "../../core/index.js";
 import { TagRepository } from "./tag-repository.js";
 
-interface MemoryRow {
+export interface MemoryRow {
   id: string;
   content: string;
   type: MemoryType;
@@ -45,7 +45,7 @@ function asConfidence(v: string | number): number {
   return typeof v === "number" ? v : Number(v);
 }
 
-function mapMemory(row: MemoryRow, tags: string[]): Memory {
+export function mapMemory(row: MemoryRow, tags: string[]): Memory {
   return {
     id: row.id,
     content: row.content,

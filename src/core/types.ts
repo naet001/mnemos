@@ -127,3 +127,26 @@ export interface MemoryListResult {
   limit: number;
   offset: number;
 }
+
+export interface SearchInput {
+  query: string;
+  projectIds?: string[];
+  types?: MemoryType[];
+  tags?: string[];
+  statuses?: MemoryStatus[];
+  limit?: number;
+}
+
+export interface SearchHitResult {
+  memory: Memory;
+  rank: number;
+  score: number;
+}
+
+export interface SearchResult {
+  items: SearchHitResult[];
+  // Per-leg hit counts before fusion; useful for observability and for
+  // confirming the keyword-only degrade when no provider is configured.
+  legs: { semantic: number; keyword: number };
+  fused: number;
+}

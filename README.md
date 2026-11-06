@@ -2,17 +2,20 @@
 
 A shared, persistent memory service for multiple independent AI agents and LLM platforms. Mnemos is an MCP server that gives connected agents access to one canonical memory store — submit information, retrieve relevant memories, and share project context.
 
-> **Status:** Early development (M1 complete, M2 memory core in verification)
+> **Status:** Early development (M1–M2 complete, M3 hybrid retrieval in verification)
 
 > **Note:** `pnpm migrate` is the only schema path and requires the PostgreSQL
 > container from `docker compose up -d` (the pgvector image — `CREATE EXTENSION
 > vector` fails on stock PostgreSQL). Configuration is read from environment
 > variables; copy `.env.example` to `.env` and the scripts load it automatically.
+> Retrieval combines pgvector similarity with PostgreSQL full-text search;
+> with `EMBEDDING_PROVIDER=none` search degrades to keyword-only. The `fake`
+> provider is a deterministic lexical-similarity stand-in, not a semantic model.
 
 ## Features
 
 - **Shared memory** — one store, many agents, permission-controlled access
-- **Semantic search** — retrieve memories by meaning, keywords, and metadata
+- **Hybrid retrieval** — vector similarity + full-text search fused with RRF, filtered by metadata and access scope
 - **Structured proposals** — assisted memory creation with an extraction LLM
 - **MCP transport** — supports both STDIO and Streamable HTTP
 - **PostgreSQL + pgvector** — durable storage with vector similarity search
@@ -61,7 +64,8 @@ src/
 ├── core/           # Domain types, validation, typed errors
 ├── db/             # Connection, migrations, repositories
 ├── logger/         # Structured logging
-├── services/       # Memory manager, access manager
+├── providers/      # Embedding provider interface + adapters
+├── services/       # Memory manager, access manager, retrieval engine
 └── types/          # Shared type definitions
 ```
 

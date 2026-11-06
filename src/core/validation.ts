@@ -63,6 +63,15 @@ export const listMemoriesSchema = z.object({
 
 export const memoryIdSchema = uuid;
 
+export const searchMemorySchema = z.object({
+  query: z.string().trim().min(1).max(2000),
+  projectIds: z.array(uuid).optional(),
+  types: z.array(z.enum(MEMORY_TYPES)).optional(),
+  tags: z.array(tagName).optional(),
+  statuses: z.array(z.enum(MEMORY_STATUSES)).optional(),
+  limit: z.number().int().min(1).max(100).default(20),
+});
+
 export function parseOrThrow<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (result.success) return result.data;
